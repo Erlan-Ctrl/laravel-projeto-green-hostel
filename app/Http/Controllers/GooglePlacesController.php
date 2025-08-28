@@ -9,148 +9,195 @@ use Illuminate\Support\Facades\Cache;
 
 class GooglePlacesController extends Controller
 {
+    protected $nearbyUrl = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
+    protected $detailsUrl = 'https://maps.googleapis.com/maps/api/place/details/json';
+    protected $geocodeUrl = 'https://maps.googleapis.com/maps/api/geocode/json';
+    protected $photoUrl = 'https://maps.googleapis.com/maps/api/place/photo';
 
+    /**
+     * Search nearby lodging using Google Places API.
+     * Accepts query params:
+     *  - q (string): free-text keyword / hotel name
+     *  - location (string): neighborhood/address OR "lat,lng"
+     *  - price_filter (cheap|mid|premium) optional
+     *  - radius (meters) optional
+     *
+     * Returns JSON: { data: [ { place_id, name, vicinity, lat, lng, rating, user_ratings_total, price_level, photo } ] }
+     */
     public function nearby(Request $request)
     {
-        $lat = $request->query('lat');
-        $lng = $request->query('lng');
-
-        if (! $lat || ! $lng) {
-            return response()->json(['error' => 'Parâmetros lat/lng obrigatórios'], 400);
+        $apiKey = env('GOOGLE_PLACES_API_KEY');
+        if (!$apiKey) {
+            return response()->json(['error' => 'Google Places API key not set'], 500);
         }
 
-        $key = config('services.google.places_key', env('GOOGLE_PLACES_API_KEY'));
-        if (! $key) {
-            return response()->json(['error' => 'GOOGLE_PLACES_API_KEY ausente'], 500);
-        }
+        $q = $request->query('q');
+        $locationQuery = $request->query('location');
+        $price_filter = $request->query('price_filter');
+        $radius = intval($request->query('radius', 8000));
 
-        $radius = $request->query('radius', 5000);
-        $keyword = $request->query('query', null);
+        $defaultLat = '-1.4558';
+        $defaultLng = '-48.5039';
 
-        $cacheKey = 'places_nearby:' . md5("{$lat},{$lng},{$radius},{$keyword}");
-        $body = Cache::remember($cacheKey, 90, function () use ($lat, $lng, $radius, $keyword, $key) {
-            $params = [
-                'location' => "{$lat},{$lng}",
-                'radius' => $radius,
-                'type' => 'lodging',
-                'key' => $key,
-            ];
-            if ($keyword) $params['keyword'] = $keyword;
+        $lat = $defaultLat;
+        $lng = $defaultLng;
 
-            $resp = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/place/nearbysearch/json', $params);
-            if (! $resp->ok()) {
-                Log::error('Google Places HTTP error', ['status' => $resp->status(), 'body' => substr($resp->body(), 0, 1000)]);
-                return null;
+        if ($locationQuery) {
+            if (preg_match('/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/', $locationQuery)) {
+                [$lat, $lng] = array_map('trim', explode(',', $locationQuery));
+            } else {
+                $geoRes = $this->geocodeLocation($locationQuery, $apiKey);
+                if ($geoRes && isset($geoRes['lat']) && isset($geoRes['lng'])) {
+                    $lat = $geoRes['lat'];
+                    $lng = $geoRes['lng'];
+                }
             }
-            return $resp->json();
-        });
-
-        if ($body === null) {
-            return response()->json(['error' => 'Erro ao contatar Google Places'], 502);
         }
 
-        $results = $body['results'] ?? [];
-
-        $normalized = [];
-        foreach ($results as $r) {
-            $placeLat = $r['geometry']['location']['lat'] ?? null;
-            $placeLng = $r['geometry']['location']['lng'] ?? null;
-            $vicinity = $r['vicinity'] ?? ($r['formatted_address'] ?? '');
-
-            $photoUrl = null;
-            if (!empty($r['photos'][0]['photo_reference'])) {
-                $photoRef = $r['photos'][0]['photo_reference'];
-                $photoUrl = "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={$photoRef}&key={$key}";
-            }
-
-            $distanceKm = null;
-            if ($placeLat !== null && $placeLng !== null) {
-                $distanceKm = $this->haversineDistance($lat, $lng, $placeLat, $placeLng);
-            }
-
-            $normalized[] = [
-                'id' => $r['place_id'] ?? null,
-                'place_id' => $r['place_id'] ?? null,
-                'name' => $r['name'] ?? '',
-                'city' => $vicinity,
-                'neighborhood' => null,
-                'image_url' => $photoUrl,
-                'price' => null,
-                'price_level' => $r['price_level'] ?? null,
-                'price_text' => $this->mapPriceLevel($r['price_level'] ?? null),
-                'distance' => $distanceKm !== null ? round($distanceKm, 3) : null,
-                'description' => ($r['types'] ? implode(', ', $r['types']) . ' — ' : '') . $vicinity,
-                'latitude' => $placeLat,
-                'longitude' => $placeLng,
-                'rating' => $r['rating'] ?? null,
-                'user_ratings_total' => $r['user_ratings_total'] ?? 0,
-                'raw' => config('app.debug') ? $r : null,
-            ];
+        $cacheKey = 'places_nearby:' . md5(sprintf('%s|%s|%s|%d', $q, $lat . ',' . $lng, $price_filter, $radius));
+        $cached = Cache::get($cacheKey);
+        if ($cached) {
+            return response()->json(['data' => $cached]);
         }
 
-        return response()->json($normalized, 200);
-    }
-
-    public function placeDetails(Request $request)
-    {
-        $placeId = $request->query('place_id');
-        if (! $placeId) {
-            return response()->json(['error' => 'place_id obrigatório'], 400);
-        }
-
-        $key = config('services.google.places_key', env('GOOGLE_PLACES_API_KEY'));
-        if (! $key) {
-            return response()->json(['error' => 'GOOGLE_PLACES_API_KEY ausente'], 500);
-        }
-
-        $cacheKey = 'place_details:' . $placeId;
-        $detail = Cache::remember($cacheKey, 3600, function () use ($placeId, $key) {
-            $resp = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/place/details/json', [
-                'place_id' => $placeId,
-                'fields' => 'formatted_address,formatted_phone_number,website,price_level,opening_hours,international_phone_number,geometry,name,rating,user_ratings_total',
-                'key' => $key,
-            ]);
-
-            if (! $resp->ok()) {
-                Log::warning('Place Details HTTP error', ['place_id' => $placeId, 'status' => $resp->status(), 'body' => substr($resp->body(), 0, 1000)]);
-                return null;
-            }
-
-            $body = $resp->json();
-            return $body['result'] ?? null;
-        });
-
-        if ($detail === null) {
-            return response()->json(['error' => 'Não foi possível obter detalhes (veja logs)'], 502);
-        }
-
-        return response()->json([
-            'place_id' => $placeId,
-            'name' => $detail['name'] ?? null,
-            'formatted_address' => $detail['formatted_address'] ?? null,
-            'phone' => $detail['formatted_phone_number'] ?? $detail['international_phone_number'] ?? null,
-            'website' => $detail['website'] ?? null,
-            'price_level' => $detail['price_level'] ?? null,
-            'price_text' => $this->mapPriceLevel($detail['price_level'] ?? null),
-            'opening_hours' => $detail['opening_hours']['weekday_text'] ?? [],
-            'rating' => $detail['rating'] ?? null,
-            'user_ratings_total' => $detail['user_ratings_total'] ?? null,
-            'geometry' => $detail['geometry'] ?? null,
-            'raw' => config('app.debug') ? $detail : null,
-        ]);
-    }
-
-    private function mapPriceLevel($level)
-    {
-        if ($level === null) return null;
-        $map = [
-            0 => 'Grátis/Barato',
-            1 => 'Econômico ($)',
-            2 => 'Médio ($$)',
-            3 => 'Caro ($$$)',
-            4 => 'Muito caro ($$$$)',
+        $params = [
+            'key' => $apiKey,
+            'location' => $lat . ',' . $lng,
+            'radius' => $radius,
+            'type' => 'lodging',
         ];
-        return $map[(int)$level] ?? null;
+
+        if ($q) {
+            $params['keyword'] = $q;
+        }
+
+        try {
+            $resp = Http::timeout(10)->get($this->nearbyUrl, $params);
+            $body = $resp->json();
+            $results = $body['results'] ?? [];
+
+            $mapped = array_map(function ($r) use ($apiKey) {
+                $lat = $r['geometry']['location']['lat'] ?? null;
+                $lng = $r['geometry']['location']['lng'] ?? null;
+
+                $photo = null;
+                if (!empty($r['photos'][0]['photo_reference'])) {
+                    $ref = $r['photos'][0]['photo_reference'];
+                    $photo = $this->buildPhotoUrl($ref, $apiKey);
+                }
+
+                return [
+                    'place_id' => $r['place_id'] ?? null,
+                    'name' => $r['name'] ?? null,
+                    'vicinity' => $r['vicinity'] ?? ($r['formatted_address'] ?? null),
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'rating' => $r['rating'] ?? null,
+                    'user_ratings_total' => $r['user_ratings_total'] ?? null,
+                    'price_level' => $r['price_level'] ?? null,
+                    'photo' => $photo,
+                ];
+            }, $results);
+
+            if ($price_filter) {
+                $mapped = array_values(array_filter($mapped, function ($i) use ($price_filter) {
+                    $pl = $i['price_level'] ?? null;
+                    if ($price_filter === 'cheap') return $pl === 0 || $pl === 1 || $pl === null;
+                    if ($price_filter === 'mid') return $pl === 2;
+                    if ($price_filter === 'premium') return $pl >= 3;
+                    return true;
+                }));
+            }
+
+            Cache::put($cacheKey, $mapped, 30);
+
+            return response()->json(['data' => $mapped]);
+        } catch (\Exception $e) {
+            Log::error("Google Places Nearby error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to query Google Places: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get place details by place_id and return simplified shape (used by frontend if needed).
+     */
+    public function details(Request $request)
+    {
+        $apiKey = env('GOOGLE_PLACES_API_KEY');
+        $placeId = $request->query('place_id');
+
+        if (!$apiKey || !$placeId) {
+            return response()->json(['error' => 'Missing parameters'], 400);
+        }
+
+        $cacheKey = 'places_details:' . md5($placeId);
+        $cached = Cache::get($cacheKey);
+        if ($cached) return response()->json(['data' => $cached]);
+
+        try {
+            $resp = Http::timeout(10)->get($this->detailsUrl, [
+                'place_id' => $placeId,
+                'key' => $apiKey,
+                'fields' => 'name,formatted_address,geometry,formatted_phone_number,website,opening_hours,photos,rating,user_ratings_total,price_level,review'
+            ]);
+            $body = $resp->json();
+            $r = $body['result'] ?? null;
+            if (!$r) {
+                return response()->json(['error' => 'Place not found'], 404);
+            }
+            $photo = null;
+            if (!empty($r['photos'][0]['photo_reference'])) {
+                $photo = $this->buildPhotoUrl($r['photos'][0]['photo_reference'], $apiKey);
+            }
+
+            $mapped = [
+                'place_id' => $r['place_id'] ?? $placeId,
+                'name' => $r['name'] ?? null,
+                'address' => $r['formatted_address'] ?? null,
+                'lat' => $r['geometry']['location']['lat'] ?? null,
+                'lng' => $r['geometry']['location']['lng'] ?? null,
+                'phone' => $r['formatted_phone_number'] ?? null,
+                'website' => $r['website'] ?? null,
+                'opening_hours' => $r['opening_hours'] ?? null,
+                'rating' => $r['rating'] ?? null,
+                'user_ratings_total' => $r['user_ratings_total'] ?? null,
+                'price_level' => $r['price_level'] ?? null,
+                'photo' => $photo,
+            ];
+
+            // cache details a bit longer
+            Cache::put($cacheKey, $mapped, 300);
+
+            return response()->json(['data' => $mapped]);
+        } catch (\Exception $e) {
+            Log::error("Google Places Details error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to query Google Places details: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function geocodeLocation($text, $apiKey)
+    {
+        try {
+            $resp = Http::timeout(8)->get($this->geocodeUrl, [
+                'address' => $text,
+                'key' => $apiKey,
+            ]);
+            $body = $resp->json();
+            $first = $body['results'][0] ?? null;
+            if (!$first) return null;
+            return [
+                'lat' => $first['geometry']['location']['lat'] ?? null,
+                'lng' => $first['geometry']['location']['lng'] ?? null,
+            ];
+        } catch (\Exception $e) {
+            Log::warning("Geocode failed for '{$text}': " . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function buildPhotoUrl($photoReference, $apiKey, $maxwidth = 800)
+    {
+        return $this->photoUrl . '?maxwidth=' . intval($maxwidth) . '&photoreference=' . urlencode($photoReference) . '&key=' . $apiKey;
     }
 
     private function haversineDistance($lat1, $lon1, $lat2, $lon2)
