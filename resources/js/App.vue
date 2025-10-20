@@ -11,7 +11,6 @@
             >
                 <v-container class="header-inner" fluid>
                     <div class="brand">
-                        <!-- logo container: quadrado branco atrás da logo -->
                         <div class="logo-container" aria-hidden="true">
                             <img :src="logo" alt="Green Hostel" class="logo-img" />
                         </div>
@@ -254,7 +253,6 @@
                             <p class="dialog-desc mt-4">{{ dialog.hotel?.description || dialog.hotel?.short_description || 'Descrição não disponível.' }}</p>
                         </div>
 
-                        <!-- AQUI: container que agora ocupa 100% e alinha botão à direita -->
                         <div class="dialog-actions mt-auto">
                             <v-btn class="confirm-btn" @click="confirmFromDialog">Confirmar reserva</v-btn>
                         </div>
@@ -573,7 +571,6 @@ const heroLoaded = ref(false);
 .header-inner{ display:flex; align-items:center; justify-content:space-between; padding:16px 28px; background:transparent; z-index:10; position:relative; }
 .brand{ display:flex; gap:12px; align-items:center; }
 
-/* white square behind logo */
 .logo-container{ width:56px; height:56px; background:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:6px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); z-index:20; }
 .logo-img{ width:100%; height:100%; border-radius:6px; object-fit:contain; display:block; }
 
@@ -605,7 +602,6 @@ const heroLoaded = ref(false);
     box-sizing: border-box;
     position:relative;
     z-index:11;
-    /* ensure items inside are vertically centered */
     align-items: center;
 }
 
@@ -615,7 +611,6 @@ const heroLoaded = ref(false);
 .big-search-content{ display:flex; flex-direction:column; flex:1; min-width:0; }
 .label{ font-size: 11px; color: #6b7280; margin-bottom: 4px; }
 
-/* place icons inside each item consistently */
 .big-search-item .icon-left{
     position:absolute;
     left:18px;
@@ -637,7 +632,6 @@ const heroLoaded = ref(false);
     display:flex;align-items:center;justify-content:center;
 }
 
-/* remove the gray inner box that Vuetify places inside v-field for this search bar */
 .big-search-wrapper ::v-deep(.v-field__background),
 .big-search-wrapper ::v-deep(.v-field__control),
 .big-search-wrapper ::v-deep(.v-field__outline) {
@@ -646,14 +640,12 @@ const heroLoaded = ref(false);
     border: none !important;
 }
 
-/* make the actual input surface look like a clean line inside the rounded pill */
 .big-search-wrapper ::v-deep(.v-field__input),
 .big-search-wrapper ::v-deep(input) {
     background: transparent !important;
     height: auto !important;
 }
 
-/* inputs padding differs per item size so icon and text don't overlap */
 .big-search-item--grow ::v-deep(input),
 .big-search-item--grow ::v-deep(.v-field__input),
 .big-search-item--grow ::v-deep(.v-input input) {
@@ -716,7 +708,6 @@ const heroLoaded = ref(false);
 .empty{ text-align:center; padding:18px; border-radius:8px; background:linear-gradient(180deg, rgba(245,250,245,0.6), rgba(255,255,255,0.4)); color:var(--muted); font-weight:700; }
 .load-more{ text-align:center; margin:18px 0; }
 
-/* ---------- remover o fundo cinza interno do v-text-field dentro da barra de busca ---------- */
 .big-search-wrapper ::v-deep(.v-field--variant-filled .v-field__control),
 .big-search-wrapper ::v-deep(.v-field--variant-filled .v-field__background),
 .big-search-wrapper ::v-deep(.v-field--variant-filled .v-field__overlay),
@@ -733,7 +724,6 @@ const heroLoaded = ref(false);
     border: none !important;
 }
 
-/* hides internal overlay/outline used by Vuetify filled variant */
 .big-search-wrapper ::v-deep(.v-field__overlay),
 .big-search-wrapper ::v-deep(.v-field__outline){
     display: none !important;
@@ -741,7 +731,6 @@ const heroLoaded = ref(false);
     pointer-events: none !important;
 }
 
-/* garante que o input em si esteja transparente e o texto legível */
 .big-search-wrapper ::v-deep(input),
 .big-search-wrapper ::v-deep(.v-field__input),
 .big-search-wrapper ::v-deep(.v-text-field .v-input__slot),
@@ -751,10 +740,9 @@ const heroLoaded = ref(false);
     color: inherit !important;
 }
 
-/* pequenos ajustes para o placeholder / altura do campo */
 .big-search-item--grow ::v-deep(.v-field__input),
 .big-search-item--grow ::v-deep(input) {
-    padding-left: 56px !important; /* espaço para o ícone */
+    padding-left: 56px !important;
     height: 44px !important;
 }
 .big-search-item:not(.big-search-item--grow) ::v-deep(.v-field__input),
@@ -763,20 +751,16 @@ const heroLoaded = ref(false);
     height: 44px !important;
 }
 
-/* ALIGN: make search items vertically centered and consistent */
 .big-search-wrapper { align-items: center; }
 .big-search-item { align-items: center; display: flex; }
 .big-search-item .big-search-content { display:flex; flex-direction:column; justify-content:center; }
 .big-search-item .v-field__control, .big-search-item ::v-deep(.v-field__field) { display:flex !important; align-items:center !important; height:100% !important; }
 .big-search-button { display:flex; align-items:center; justify-content:center; }
 
-/* ensure icons and clear button are vertically centered */
 .big-search-item .icon-left, .big-search-item .clear-icon { top: 50%; transform: translateY(-50%); }
 
-/* small visual tweak: make input placeholders vertically centered */
 .big-search-wrapper ::v-deep(.v-field__input) { display:flex; align-items:center; }
 
-/* 🔧 Alinhamento vertical fino dos textos da barra de busca */
 .big-search-wrapper ::v-deep(.v-field__control),
 .big-search-wrapper ::v-deep(.v-field__input) {
     display: flex !important;
@@ -786,22 +770,18 @@ const heroLoaded = ref(false);
     padding-bottom: 0 !important;
 }
 
-/* Remove aquele leve deslocamento do texto */
 .big-search-wrapper ::v-deep(input.v-field__input),
 .big-search-wrapper ::v-deep(.v-field__input input) {
     line-height: 1 !important;
     margin-top: 2px !important; /* ajuste fino — pode ser 1 ou 2 px */
 }
 
-/* opcional: centraliza placeholder verticalmente */
 .big-search-wrapper ::v-deep(.v-field__input::placeholder) {
     line-height: normal;
     transform: translateY(1px);
 }
 
-/* DIALOG FIXES */
 .dialog-card{ position:relative; overflow: visible; }
-/* posiciona o X no canto superior direito do card */
 .dialog-close{ position:absolute; top:8px; right:8px; z-index:10010; background: rgba(255,255,255,0.98); box-shadow: 0 6px 18px rgba(0,0,0,0.08); border-radius: 8px; padding:6px; }
 .dialog-close svg{ display:block; }
 .dialog-close path{ fill: rgba(11,19,17,0.9); }
@@ -812,7 +792,6 @@ const heroLoaded = ref(false);
 .confirm-btn{ background: #2e7d32; color:#fff !important; box-shadow: 0 8px 20px rgba(0,0,0,0.08); border: none !important; }
 .dialog-actions .v-btn{ min-width:140px; }
 
-/* Ensure dialog actions occupy the full column and align right */
 .dialog-actions{ width:100%; display:flex; justify-content:flex-end; gap:12px; align-items:center; }
 
 .dialog-map{ width:100%; border-radius:8px; background:#f3f5f6; height:240px; }
