@@ -88,7 +88,7 @@ php artisan serve
 ````
 
 Acesse no navegador:
-👉 http://127.0.0.1:8000
+👉 localhost:8000
 
 📚 Documentação da API
 
@@ -106,11 +106,11 @@ Notificações: envio de alertas e promoções
 
 Desenvolvimento Backend (Erick Erlan, Cauã Girard, Juliana Silva)
 
-Desenvolvimento Frontend (Erick Erlan, Cauã Girard, Juliana Silva, Thamyres Victoria, Erick Vinicius e Kauê)
+Desenvolvimento Frontend (Erick Erlan, Cauã Girard, Juliana Silva, Thamyres Victoria,)
 
 Design/UI (Leandro Saint)
 
-Integração e Testes (Erick Erlan e Douglas Neto)
+Integração e Testes (Erick Erlan)
 
 🔒 Segurança
 
