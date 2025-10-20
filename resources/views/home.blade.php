@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Green Hostel — Belém COP30</title>
+  <title>Green Hostel</title>
 
   @vite(['resources/css/greenhostel.css', 'resources/js/app.js'])
 
