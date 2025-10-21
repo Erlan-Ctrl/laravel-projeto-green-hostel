@@ -65,7 +65,6 @@
                                             @keydown.enter="runSearchDebouncedImmediate"
                                         />
                                     </div>
-
                                     <button
                                         v-if="q"
                                         class="clear-btn"
@@ -97,7 +96,7 @@
 
                                 <div class="big-search-item">
                                     <div class="big-search-content" style="cursor:pointer;" @click="openGuestsDialog">
-                                        <div class="label">Quantidade De Hóspedes</div>
+                                        <div class="label">Hóspedes e quartos</div>
                                         <v-text-field
                                             v-model="guests"
                                             placeholder="2 hóspedes, 1 quarto"
@@ -174,17 +173,17 @@
                 <section v-if="topHotels.length" class="top-rated refined"></section>
 
                 <div class="results-meta" v-if="!loading">
-                    <div>{{ total }} opções encontradas</div>
-                    <div>
+                    <div class="meta-left">{{ total }} opções encontradas</div>
+                    <div class="meta-right">
                         <v-select
                             v-model="sortBy"
                             :items="sortItems"
-                            item-title="label"
-                            item-value="value"
+                            :item-title="'label'"
+                            :item-value="'value'"
                             dense
                             hide-details
-                            style="max-width:220px"
                             class="black-select"
+                            style="max-width:220px"
                         />
                     </div>
                 </div>
@@ -207,9 +206,7 @@
                                     <div>
                                         <div class="hotel-title">{{ hotel.name }}</div>
                                         <div class="hotel-sub">{{ hotel.vicinity }}</div>
-
                                         <p class="hotel-desc">{{ getHotelDesc(hotel) }}</p>
-
                                         <div class="price-line" aria-label="Preço por noite">
                                             <div class="price-badge" :class="priceTierClass(hotel)">
                                                 {{ formatPrice(hotel.estimated_price) }}
@@ -231,22 +228,22 @@
                                         :aria-label="`Avaliação ${Number(hotel.rating).toFixed(1)} de 5`"
                                     >
                                         <div class="stars" aria-hidden="true">
-                                            <span
-                                                v-for="(w, i) in starWidthsFor(hotel.rating)"
-                                                :key="i"
-                                                class="star"
-                                                :style="starStyle(i)"
-                                            >
-                                                <svg viewBox="0 0 24 24" class="base" width="18" height="18">
-                                                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                                                </svg>
-                                                <span class="fill" aria-hidden="true" :style="fillStyle(w)"></span>
-                                            </span>
+                      <span
+                          v-for="(w, i) in starWidthsFor(hotel.rating)"
+                          :key="i"
+                          class="star"
+                          :style="{ animationDelay: (i * 80) + 'ms' }"
+                      >
+                        <svg viewBox="0 0 24 24" class="base" width="18" height="18">
+                          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                        </svg>
+                        <span class="fill" aria-hidden="true" :style="{ width: w + '%' }"></span>
+                      </span>
                                         </div>
                                         <span class="rating-text">
-                                            {{ Number(hotel.rating).toFixed(1) }}
-                                            <span class="count">({{ hotel.user_ratings_total || 0 }})</span>
-                                        </span>
+                      {{ Number(hotel.rating).toFixed(1) }}
+                      <span class="count">({{ hotel.user_ratings_total || 0 }})</span>
+                    </span>
                                     </div>
                                 </v-card-text>
 
@@ -377,7 +374,7 @@ axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:
 axios.defaults.timeout = 12000
 
 function debounce(fn, wait = 350) {
-    let timer = null
+    let timer
     function debounced(...args) {
         if (timer) clearTimeout(timer)
         timer = setTimeout(() => { timer = null; fn.apply(this, args) }, wait)
@@ -474,9 +471,7 @@ function normalizeItems(items) {
     return (items || []).map((i, idx) => {
         const est = i?.estimated_price ?? estimatePriceFromPriceLevel(i?.price_level)
         const photo = i?.photo || pickImage({ ...i, estimated_price: est })
-        const types = Array.isArray(i?.types)
-            ? i.types
-            : (i?.types ? String(i.types).split(',').map(s => s.trim()).filter(Boolean) : [])
+        const types = Array.isArray(i?.types) ? i.types : (i?.types ? String(i.types).split(',').map(s => s.trim()).filter(Boolean) : [])
         const place_id = i?.place_id || i?.id || `p-${idx}`
         const name = i?.name || 'Hotel'
         const vicinity = i?.vicinity || i?.address || ''
@@ -486,9 +481,8 @@ function normalizeItems(items) {
 
 function getHotelDesc(h, long = false) {
     if (!h) return long ? loremLong : loremShort
-    return h.description || h.short_description || (long ? loremLong : loremShort)
+    return h.description || h['short_description'] || (long ? loremLong : loremShort)
 }
-
 
 function formatPrice(value) {
     const n = Number(value || 0)
@@ -511,18 +505,7 @@ function starWidthsFor(rating) {
     if (frac >= 0.75) full += 1
     else if (frac >= 0.25) half = 1
     const empty = Math.max(0, 5 - full - half)
-    return [
-        ...Array(full).fill(100),
-        ...Array(half).fill(50),
-        ...Array(empty).fill(0),
-    ]
-}
-
-function starStyle(i) {
-    return { animationDelay: `${i * 80}ms` }
-}
-function fillStyle(w) {
-    return { width: `${w}%` }
+    return [...Array(full).fill(100), ...Array(half).fill(50), ...Array(empty).fill(0)]
 }
 
 async function getPlaces({ page: p = 1 } = {}) {
@@ -538,32 +521,28 @@ async function getPlaces({ page: p = 1 } = {}) {
         }
         const res = await axios.get('/api/places', { params })
         const payload = res?.data
-        const rawList =
-            (payload && (payload.data || payload.items)) ||
-            (Array.isArray(payload) ? payload : [])
-        const normalized = normalizeItems(rawList)
-        if (normalized.length === 0) throw new Error('A API respondeu sem itens.')
-        if (p === 1) hotels.value = normalized
-        else hotels.value = normalized /* paginação clássica */
+        const rawList = (payload && (payload.data || payload.items)) || (Array.isArray(payload) ? payload : [])
+        const list = normalizeItems(rawList)
+        if (list.length === 0) {
+            errorMsg.value = 'Nenhum hotel retornado pela API.'
+            hotels.value = []
+            totalRef.value = 0
+            page.value = p
+            return
+        }
+        hotels.value = list
         totalRef.value = (payload && (payload.total ?? payload.count)) ?? hotels.value.length
         page.value = p
     } catch (err) {
-        console.error('Erro ao buscar places', err?.response?.status, err?.response?.data || err?.message)
-        errorMsg.value =
-            err?.response?.data?.message ||
-            err?.response?.data?.error ||
-            'Não foi possível carregar hotéis. Mostrando dados de exemplo para testar a interface.'
+        errorMsg.value = err?.response?.data?.message || err?.response?.data?.error || 'Não foi possível carregar hotéis. Mostrando dados de exemplo para testar a interface.'
         const fallback = [
             { place_id: 'f1', name: 'Mercure Belém Boulevard', vicinity: 'Umarizal, Belém', rating: 4.5, user_ratings_total: 1582, price_level: 3, lat: -1.452, lng: -48.491 },
             { place_id: 'f2', name: 'Beira Rio Hotel', vicinity: 'Guamá, Belém', rating: 4.2, user_ratings_total: 2689, price_level: 1, lat: -1.4558, lng: -48.5039 },
             { place_id: 'f3', name: 'Hotel Amazônia', vicinity: 'Campina, Belém', rating: 4.6, user_ratings_total: 1120, price_level: 2, lat: -1.455, lng: -48.49 }
         ]
-        const normalized = normalizeItems(fallback)
-        hotels.value = normalized
+        hotels.value = normalizeItems(fallback)
         totalRef.value = hotels.value.length
         page.value = p
-        window.__dumpPlacesError = (e) => console.log('API ERROR RAW:', e?.response || e)
-        window.__dumpPlacesError(err)
     } finally {
         loading.value = false
     }
@@ -594,20 +573,9 @@ const sortedHotels = computed(() => {
 })
 const topHotels = computed(() => hotels.value.slice().sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,6))
 
-function clearAll() {
-    q.value=''; dates.value=''; guests.value='2'; priceFilter.value='any'; hotels.value=[]; totalRef.value=0
-    runSearchDebouncedImmediate()
-}
-function onReserve(hotel) {}
-async function openCardDialog(hotel) {
-    dialog.value.hotel = hotel
-    dialog.value.open = true
-    await nextTick()
-    initDialogMap()
-}
-function confirmFromDialog() {
-    if (dialog.value.hotel) { alert(`Reserva confirmada para ${dialog.value.hotel.name}`); dialog.value.open = false; destroyDialogMap() }
-}
+function clearAll() { q.value=''; dates.value=''; guests.value='2'; priceFilter.value='any'; hotels.value=[]; totalRef.value=0; runSearchDebouncedImmediate() }
+async function openCardDialog(hotel) { dialog.value.hotel = hotel; dialog.value.open = true; await nextTick(); initDialogMap() }
+function confirmFromDialog() { if (dialog.value.hotel) { alert(`Reserva confirmada para ${dialog.value.hotel.name}`); dialog.value.open = false; destroyDialogMap() } }
 function selectPrice(val) { priceFilter.value = val; runSearchDebouncedImmediate() }
 
 function initDialogMap() {
@@ -628,7 +596,7 @@ function destroyDialogMap() { if (mapInstance.value){ try{ mapInstance.value.rem
 
 const carouselIndex = ref(0)
 const paused = ref(false)
-let windowTimerId = null
+let windowTimerId
 function startWindowTimer(){
     stopWindowTimer()
     windowTimerId = setInterval(()=>{
@@ -637,7 +605,7 @@ function startWindowTimer(){
         carouselIndex.value = (carouselIndex.value + 1) % n
     }, 4500)
 }
-function stopWindowTimer(){ if(windowTimerId){ clearInterval(windowTimerId); windowTimerId = null } }
+function stopWindowTimer(){ if(windowTimerId){ clearInterval(windowTimerId); windowTimerId = undefined } }
 function pauseCarousel(){ paused.value = true }
 function resumeCarousel(){ paused.value = false }
 
@@ -646,6 +614,8 @@ onMounted(()=>{
     getPlaces({ page: 1 })
     startWindowTimer()
     window.addEventListener('keydown', onKeyDown)
+    document.title = 'Green Hostel'
+    setFavicon(logo)
 })
 onBeforeUnmount(()=>{
     stopWindowTimer()
@@ -672,6 +642,18 @@ function applyDates(){
     datePickerOpen.value = false
 }
 function openGuestsDialog(){ guestsDialogOpen.value = true }
+
+function setFavicon(href) {
+    try {
+        const rels = ['icon', 'shortcut icon', 'apple-touch-icon']
+        rels.forEach(rel => {
+            let link = document.querySelector(`link[rel='${rel}']`)
+            if (!link) { link = document.createElement('link'); link.setAttribute('rel', rel); document.head.appendChild(link) }
+            link.setAttribute('href', href)
+            if (rel === 'icon') link.setAttribute('type', 'image/png')
+        })
+    } catch {}
+}
 
 const heroLoaded = ref(false)
 </script>
@@ -718,26 +700,8 @@ const heroLoaded = ref(false)
 .big-search-wrapper :deep(.v-field__outline)::after,
 .big-search-wrapper :deep(.v-field__input)::before,
 .big-search-wrapper :deep(.v-field__input)::after{ display:none !important; border:0 !important; opacity:0 !important; }
-
-.big-search-wrapper :deep(.v-field__input){
-    display:flex; align-items:center !important;
-    height:var(--search-h) !important;
-    padding:0 14px !important;
-    background:transparent !important;
-}
+.big-search-wrapper :deep(.v-field__input){ display:flex; align-items:center !important; height:var(--search-h) !important; padding:0 14px !important; background:transparent !important; }
 .big-search-item--grow :deep(.v-field__input){ padding-right:38px !important; }
-
-
-.clear-btn{
-    position:absolute; right:14px; top:50%; transform:translateY(-50%);
-    width:28px; height:28px; border:none; background:transparent; padding:0;
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    border-radius:6px; z-index:12; color:#6b7280;
-}
-.clear-btn svg path{ fill: currentColor; }
-.clear-btn:hover{ color:#374151; background:rgba(0,0,0,0.05); }
-
-.search-primary-btn{ min-height:calc(var(--search-h) - 8px); height:calc(var(--search-h) - 8px); padding:0 22px; font-weight:700; }
 
 .chips-row{ margin-top:12px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 
@@ -754,22 +718,10 @@ const heroLoaded = ref(false)
 .hotel-title{ font-weight:800; font-size:15px; margin-bottom:6px; }
 .hotel-sub{ color:rgba(11,19,17,0.65); font-size:13px; margin-bottom:8px; line-height:1.2; }
 
-.hotel-desc{
-    font-size:13px;
-    color:rgba(11,19,17,0.75);
-    margin:4px 0 8px;
-    display:-webkit-box;
-    -webkit-line-clamp:2;
-    -webkit-box-orient:vertical;
-    overflow:hidden;
-}
+.hotel-desc{ font-size:13px; color:rgba(11,19,17,0.75); margin:4px 0 8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-clamp:2; overflow:hidden; }
 
 .price-line{ display:flex; justify-content:flex-end; margin-top:4px; }
-.price-badge{
-    font-weight:900; font-size:14px; padding:6px 10px; border-radius:10px;
-    line-height:1; display:inline-flex; align-items:baseline; gap:4px; letter-spacing:.2px;
-    backdrop-filter: saturate(1.2);
-}
+.price-badge{ font-weight:900; font-size:14px; padding:6px 10px; border-radius:10px; line-height:1; display:inline-flex; align-items:baseline; gap:4px; backdrop-filter:saturate(1.2); letter-spacing:.01em; }
 .price-badge .per{ font-weight:700; font-size:11px; opacity:.8; }
 .tier-cheap{ background:linear-gradient(90deg, rgba(34,197,94,.18), rgba(16,185,129,.18)); color:#065f46; border:1px solid rgba(16,185,129,.35); }
 .tier-mid{ background:linear-gradient(90deg, rgba(59,130,246,.16), rgba(37,99,235,.16)); color:#1e3a8a; border:1px solid rgba(59,130,246,.35); }
@@ -778,90 +730,31 @@ const heroLoaded = ref(false)
 .card-bottom{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
 .hotel-amenities{ color:rgba(11,19,17,0.55); font-size:13px; }
 
-.stars-hover{
-    position:absolute; left:14px; bottom:14px;
-    display:flex; align-items:center; gap:8px;
-    background:rgba(255,255,255,0.95);
-    border:1px solid rgba(0,0,0,0.06); border-radius:12px;
-    padding:6px 10px; box-shadow:0 12px 30px rgba(0,0,0,0.12);
-    opacity:0; transform:translateY(8px);
-    transition:opacity .18s ease, transform .18s ease;
-    pointer-events:none; z-index:5;
-}
-.hotel-card:hover .stars-hover,
-.hotel-card:focus-within .stars-hover{ opacity:1; transform:translateY(0); }
+.stars-hover{ position:absolute; left:14px; bottom:14px; display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.95); border:1px solid rgba(0,0,0,0.06); border-radius:12px; padding:6px 10px; box-shadow:0 12px 30px rgba(0,0,0,0.12); opacity:0; transform:translateY(8px); transition:opacity .18s ease, transform .18s ease; pointer-events:none; z-index:5; }
+.hotel-card:hover .stars-hover, .hotel-card:focus-within .stars-hover{ opacity:1; transform:translateY(0); }
 .stars{ display:flex; align-items:center; gap:2px; }
-
 .star{ position:relative; width:18px; height:18px; display:inline-block; transform:scale(.85); opacity:0; }
-@keyframes star-pop{
-    0%{ transform:scale(.6) rotate(-8deg); opacity:0; }
-    70%{ transform:scale(1.08) rotate(2deg); opacity:1; }
-    100%{ transform:scale(1) rotate(0); opacity:1; }
-}
-.hotel-card:hover .stars-hover .star{
-    animation: star-pop .26s cubic-bezier(.2,.9,.25,1.2) forwards;
-}
+@keyframes star-pop{ 0%{ transform:scale(.6) rotate(-8deg); opacity:0; } 70%{ transform:scale(1.08) rotate(2deg); opacity:1; } 100%{ transform:scale(1) rotate(0); opacity:1; } }
+.hotel-card:hover .stars-hover .star{ animation: star-pop .26s cubic-bezier(.2,.9,.25,1.2) forwards; }
 .base{ display:block; width:100%; height:100%; fill:#fff; stroke:#EAB308; stroke-width:1.5; }
-
-
-.fill{
-    position:absolute; top:0; left:0; bottom:0;
-    background:linear-gradient(90deg, #F59E0B, #FBBF24);
-
-    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>");
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    -webkit-mask-size: contain;
-
-    mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>");
-    mask-repeat: no-repeat;
-    mask-position: center;
-    mask-size: contain;
-
-    border-top-left-radius:2px;
-    border-bottom-left-radius:2px;
-}
-
+.fill{ position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg, #F59E0B, #FBBF24); -webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZD0nTTEyIDE3LjI3TDE4LjE4IDIxbC0xLjY0LTcuMDNMMjIgOS4yNGwtNy4xOS0uNjFMMTIgMiA5LjE5IDguNjMgMiA5LjI0bDUuNDYgNC43M0w1LjgyIDIxeicvPjwvc3ZnPg=="); -webkit-mask-repeat:no-repeat; -webkit-mask-position:center; -webkit-mask-size:contain; mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZD0nTTEyIDE3LjI3TDE4LjE4IDIxbC0xLjY0LTcuMDNMMjIgOS4yNGwtNy4xOS0uNjFMMTIgMiA5LjE5IDguNjMgMiA5LjI0bDUuNDYgNC43M0w1LjgyIDIxeicvPjwvc3ZnPg=="); mask-repeat:no-repeat; mask-position:center; mask-size:contain; border-top-left-radius:2px; border-bottom-left-radius:2px; }
 
 .rating-text{ font-size:12px; font-weight:800; color:#7C2D12; }
 .rating-text .count{ opacity:.75; font-weight:700; }
 
-.hotel-card :deep(.v-card-actions),
-.actions-right{
-    display:flex;
-    justify-content:flex-end !important;
-    align-items:center;
-    width:100%;
-    padding:12px 16px !important;
-}
+.actions-right{ display:flex; justify-content:flex-end !important; align-items:center; width:100%; padding:12px 16px !important; }
 
-.pagination-wrap{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    width:100%;
-    margin:16px 0 28px;
-}
-.pagination-wrap :deep(.v-pagination){
-    --v-pagination-margin: 0;
-}
+.pagination-wrap{ display:flex; justify-content:center; align-items:center; width:100%; margin:16px 0 28px; }
+.pagination-wrap :deep(.v-pagination){ margin:0; }
 
-.results-meta{ display:flex; justify-content:space-between; align-items:center; margin:8px 0 16px; color:var(--muted); font-weight:700; }
-.black-select :deep(.v-field__input),
-.black-select :deep(.v-field__input *),
-.black-select :deep(.v-select__selection-text){ color:#111 !important; }
-.black-select :deep(.v-field__append-inner .v-icon),
-.black-select :deep(.v-field__prepend-inner .v-icon){ color:#111 !important; }
-.black-select :deep(.v-field__input::placeholder){ color:#111 !important; opacity:1; }
-.black-select :deep(.v-field__background),
-.black-select :deep(.v-field__overlay),
-.black-select :deep(.v-field__outline){ background:transparent !important; }
+.results-meta{ display:flex; align-items:center; gap:12px; margin:8px 0 16px; color:var(--muted); font-weight:700; }
+.results-meta .meta-left{ flex:1 1 auto; min-width:0; }
+.results-meta .meta-right{ margin-left:auto; display:flex; align-items:center; }
 
 .empty{ text-align:center; padding:18px; border-radius:8px; background:linear-gradient(180deg,rgba(245,250,245,0.6),rgba(255,255,255,0.4)); color:var(--muted); font-weight:700; }
 
 .dialog-card{ position:relative; overflow:visible; }
 .dialog-close{ position:absolute; top:8px; right:8px; z-index:10010; background:rgba(255,255,255,0.98); box-shadow:0 6px 18px rgba(0,0,0,0.08); border-radius:8px; padding:6px; }
-.dialog-close svg{ display:block; }
 .dialog-close path{ fill:rgba(11,19,17,0.9); }
 .dialog-photo{ width:100%; height:420px; display:block; background:#f3f3f3; border-radius:8px; z-index:1; }
 .dialog-map.large{ height:360px; border-radius:8px; box-shadow:0 12px 30px rgba(0,0,0,0.06); overflow:hidden; }
@@ -877,13 +770,14 @@ const heroLoaded = ref(false)
     .hero-parallax{ height:360px; }
     .big-search-wrapper{ flex-direction:column; padding:12px; border-radius:16px; gap:8px; margin-top:10px; }
     .big-search-item{ width:100%; border-right:none; padding:8px 12px; min-height:52px; }
-    .big-search-item--grow :deep(.v-field__input){ padding-right:38px !important; }
     .media-wrap{ height:140px; }
     .card-body{ padding:12px; }
     .main-content{ padding-left:12px; padding-right:12px; max-width:100%; margin-top:8px; }
     .search-primary-btn{ min-height:40px !important; height:40px !important; }
     .dialog-photo{ height:260px; }
     .stars-hover{ left:12px; bottom:12px; }
+    .results-meta{ flex-direction:column; align-items:stretch; gap:8px; }
+    .results-meta .meta-right{ margin-left:0; }
 }
 .hero-parallax.placeholder{ height:520px; display:flex; align-items:center; background:linear-gradient(180deg,#437a4a 0%,#2b5f38 100%); }
 </style>
